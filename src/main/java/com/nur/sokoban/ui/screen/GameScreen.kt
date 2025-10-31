@@ -38,65 +38,54 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.navigation.NavController
 import com.nur.sokoban.R
+import com.nur.sokoban.data.model.Level
 import kotlin.math.roundToInt
 
-private const val LEVEL_WIDTH = 10
-private const val LEVEL_HEIGHT = 10
-
-// Data levelu
-private val levelData = intArrayOf(
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-    1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-    1, 0, 2, 3, 3, 2, 1, 0, 1, 0,
-    1, 0, 1, 3, 2, 3, 2, 0, 1, 0,
-    1, 0, 2, 3, 3, 2, 4, 0, 1, 0,
-    1, 0, 1, 3, 2, 3, 2, 0, 1, 0,
-    1, 0, 2, 3, 3, 2, 1, 0, 1, 0,
-    1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameScreen(navController: NavController) {
-    var pX by remember { mutableIntStateOf(6) }
-    var pY by remember { mutableIntStateOf(4) }
-    var heroOnGoal by remember { mutableStateOf(false) }
+fun GameScreen(
+    level: Level?,
+    onNavigateToLevels: () -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
+    if (level == null) {
+        return
+    }
+
+
+    var pX by remember { mutableIntStateOf(level.playerStartX) }
+    var pY by remember { mutableIntStateOf(level.playerStartY) }
+    var heroOnGoal by remember { mutableStateOf(level.playerOnGoalAtStart) }
     var showWinDialog by remember { mutableStateOf(false) }
-    val levelD = remember { mutableStateListOf(*levelData.toTypedArray()) }
+    val levelD = remember { mutableStateListOf(*level.grid.toTypedArray()) }
 
     // For swipe
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
-    val initialPX = 6
-    val initialPY = 4
-
-
     fun reset() {
-        pX = initialPX
-        pY = initialPY
-        heroOnGoal = false
+        pX = level.playerStartX
+        pY = level.playerStartY
+        heroOnGoal = level.playerOnGoalAtStart
         levelD.clear()
-        levelD.addAll(levelData.toTypedArray())
+        levelD.addAll(level.grid.toTypedArray())
     }
 
     fun move(dx: Int, dy: Int) {
         Log.d("Sokoban", "move called: pX=$pX, pY=$pY, dx=$dx, dy=$dy")
         val nextX = pX + dx
         val nextY = pY + dy
-        if (nextX < 0 || nextX >= LEVEL_WIDTH || nextY < 0 || nextY >= LEVEL_HEIGHT) return
+        if (nextX < 0 || nextX >= level.width || nextY < 0 || nextY >= level.height) return
 
-        val nextIndex = nextY * LEVEL_WIDTH + nextX
+        val nextIndex = nextY * level.width + nextX
         val target = levelD[nextIndex]
 
         if (target == 1) return
 
         if (target == 0 || target == 3) {
-            levelD[pY * LEVEL_WIDTH + pX] = if (heroOnGoal) 3 else 0
+            levelD[pY * level.width + pX] = if (heroOnGoal) 3 else 0
             pX = nextX
             pY = nextY
             levelD[nextIndex] = 4
@@ -104,13 +93,13 @@ fun GameScreen(navController: NavController) {
         } else if (target == 2 || target == 5) {
             val beyondX = nextX + dx
             val beyondY = nextY + dy
-            if (beyondX < 0 || beyondX >= LEVEL_WIDTH || beyondY < 0 || beyondY >= LEVEL_HEIGHT) return
+            if (beyondX < 0 || beyondX >= level.width || beyondY < 0 || beyondY >= level.height) return
 
-            val beyondIndex = beyondY * LEVEL_WIDTH + beyondX
+            val beyondIndex = beyondY * level.width + beyondX
             val beyond = levelD[beyondIndex]
 
             if (beyond == 0 || beyond == 3) {
-                levelD[pY * LEVEL_WIDTH + pX] = if (heroOnGoal) 3 else 0
+                levelD[pY * level.width + pX] = if (heroOnGoal) 3 else 0
                 pX = nextX
                 pY = nextY
                 levelD[nextIndex] = 4
@@ -133,10 +122,10 @@ fun GameScreen(navController: NavController) {
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 title = {
-                    Text("Level 1")
+                    Text("Level ${level.number}")
                 },
                 navigationIcon = {
-                    IconButton({}) {
+                    IconButton(onClick = onNavigateToLevels) {
                         Icon(
                             imageVector = Icons.Default.Home,
                             contentDescription = "Levels Menu"
@@ -144,15 +133,13 @@ fun GameScreen(navController: NavController) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        reset()
-                    }) {
+                    IconButton(onClick = { reset() }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Reset level",
                         )
                     }
-                    IconButton(onClick = {navController.navigate("settings")}) {
+                    IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings Icon"
@@ -191,10 +178,12 @@ fun GameScreen(navController: NavController) {
                 }
         ) {
             GameLevelCanvas(
-                levelData = levelD.toList(),
                 modifier = Modifier
                     .fillMaxSize()
-                    .aspectRatio(LEVEL_WIDTH.toFloat() / LEVEL_HEIGHT.toFloat())
+                    .aspectRatio(level.width.toFloat() / level.height.toFloat()),
+                levelData = levelD.toList(),
+                levelWidth = level.width,
+                levelHeight = level.height
             )
         }
 
@@ -223,7 +212,12 @@ fun GameScreen(navController: NavController) {
 
 @SuppressLint("LocalContextResourcesRead")
 @Composable
-fun GameLevelCanvas(levelData: List<Int>, modifier: Modifier = Modifier) {
+fun GameLevelCanvas(
+    modifier: Modifier = Modifier,
+    levelData: List<Int>,
+    levelWidth: Int,
+    levelHeight: Int
+) {
     val context = LocalContext.current
 
     val tiles = remember {
@@ -238,13 +232,13 @@ fun GameLevelCanvas(levelData: List<Int>, modifier: Modifier = Modifier) {
     }
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        val tileWidthPx = size.width / LEVEL_WIDTH
-        val tileHeightPx = size.height / LEVEL_HEIGHT
+        val tileWidthPx = size.width / levelWidth
+        val tileHeightPx = size.height / levelHeight
         val tileSize = minOf(tileWidthPx, tileHeightPx)
 
-        for (y in 0 until LEVEL_HEIGHT) {
-            for (x in 0 until LEVEL_WIDTH) {
-                val tileIndex = levelData[y * LEVEL_WIDTH + x]
+        for (y in 0 until levelHeight) {
+            for (x in 0 until levelWidth) {
+                val tileIndex = levelData[y * levelWidth + x]
                 val img: ImageBitmap = tiles[tileIndex.coerceIn(0, tiles.lastIndex)]
 
                 drawImage(
