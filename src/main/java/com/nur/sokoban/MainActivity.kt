@@ -13,16 +13,19 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,14 +35,18 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.nur.sokoban.ui.theme.SokobanTheme
 import kotlin.math.roundToInt
 
@@ -50,38 +57,18 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SokobanTheme {
-                var resetTrigger by remember { mutableIntStateOf(0) }
+                val navController = rememberNavController()
 
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = {
-                        TopAppBar(
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                titleContentColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            title = {
-                                Text("Level 1")
-                            },
-                            actions = {
-                                IconButton(onClick = {
-                                    resetTrigger++
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Refresh,
-                                        contentDescription = "Reset level",
-                                    )
-                                }
-                            }
-                        )
-                    },
-                ) { innerPadding ->
-                    GameScreen(
-                        modifier = Modifier
-                            .padding(innerPadding)
-                            .fillMaxSize(),
-                        resetTrigger
-                    )
+                NavHost(
+                    navController = navController,
+                    startDestination = "game"
+                ) {
+                    composable("game") {
+                        GameScreen(navController)
+                    }
+                    composable("settings") {
+                        SettingScreen(navigateBack = {navController.popBackStack()})
+                    }
                 }
             }
         }
@@ -105,13 +92,14 @@ private val levelData = intArrayOf(
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameScreen(modifier: Modifier = Modifier, resetTrigger: Int = 0) {
-    var pX by remember(resetTrigger) { mutableIntStateOf(6) }
-    var pY by remember(resetTrigger) { mutableIntStateOf(4) }
-    var heroOnGoal by remember(resetTrigger) { mutableStateOf(false) }
+fun GameScreen(navController: NavController) {
+    var pX by remember { mutableIntStateOf(6) }
+    var pY by remember { mutableIntStateOf(4) }
+    var heroOnGoal by remember { mutableStateOf(false) }
     var showWinDialog by remember { mutableStateOf(false) }
-    val levelD = remember(resetTrigger) { mutableStateListOf(*levelData.toTypedArray()) }
+    val levelD = remember { mutableStateListOf(*levelData.toTypedArray()) }
 
     // For swipe
     var offsetX by remember { mutableFloatStateOf(0f) }
@@ -169,61 +157,100 @@ fun GameScreen(modifier: Modifier = Modifier, resetTrigger: Int = 0) {
         }
     }
 
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .pointerInput(resetTrigger) {
-                detectDragGestures(
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-
-                        offsetX += dragAmount.x
-                        offsetY += dragAmount.y
-                    },
-                    onDragEnd = {
-                        val threshold = 100f
-
-                        when {
-                            offsetX > threshold -> move(1, 0)
-                            offsetX < -threshold -> move(-1, 0)
-                            offsetY > threshold -> move(0, 1)
-                            offsetY < -threshold -> move(0, -1)
-                        }
-
-                        offsetX = 0f
-                        offsetY = 0f
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            CenterAlignedTopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                ),
+                title = {
+                    Text("Level 1")
+                },
+                navigationIcon = {
+                    IconButton({}) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "Levels Menu"
+                        )
                     }
-                )
-            }
-    ) {
-        GameLevelCanvas(
-            levelData = levelD.toList(),
+                },
+                actions = {
+                    IconButton(onClick = {
+                        reset()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Reset level",
+                        )
+                    }
+                    IconButton(onClick = {navController.navigate("settings")}) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings Icon"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Box(
             modifier = Modifier
+                .padding(innerPadding)
                 .fillMaxSize()
-                .aspectRatio(LEVEL_WIDTH.toFloat() / LEVEL_HEIGHT.toFloat())
-        )
-    }
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDrag = { change, dragAmount ->
+                            change.consume()
 
-    if (showWinDialog) {
-        AlertDialog(
-            onDismissRequest = { showWinDialog = false },
-            title = { Text("Congratulations!") },
-            text = { Text("You have won!") },
-            confirmButton = {
-                Button(onClick = {
-                    reset()
-                    showWinDialog = false
-                }) {
-                    Text("Play Again")
+                            offsetX += dragAmount.x
+                            offsetY += dragAmount.y
+                        },
+                        onDragEnd = {
+                            val threshold = 100f
+
+                            when {
+                                offsetX > threshold -> move(1, 0)
+                                offsetX < -threshold -> move(-1, 0)
+                                offsetY > threshold -> move(0, 1)
+                                offsetY < -threshold -> move(0, -1)
+                            }
+
+                            offsetX = 0f
+                            offsetY = 0f
+                        }
+                    )
                 }
-            },
-            dismissButton = {
-                Button(onClick = { showWinDialog = false }) {
-                    Text("Close")
+        ) {
+            GameLevelCanvas(
+                levelData = levelD.toList(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .aspectRatio(LEVEL_WIDTH.toFloat() / LEVEL_HEIGHT.toFloat())
+            )
+        }
+
+        if (showWinDialog) {
+            AlertDialog(
+                onDismissRequest = { showWinDialog = false },
+                title = { Text("Congratulations!") },
+                text = { Text("You have won!") },
+                confirmButton = {
+                    Button(onClick = {
+                        reset()
+                        showWinDialog = false
+                    }) {
+                        Text("Play Again")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { showWinDialog = false }) {
+                        Text("Close")
+                    }
                 }
-            }
-        )
+            )
+        }
     }
 }
 
@@ -268,11 +295,37 @@ fun GameLevelCanvas(levelData: List<Int>, modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameLevelCanvasPreview() {
-    SokobanTheme {
-        GameScreen()
+fun SettingScreen(navigateBack: () -> Unit) {
+    Scaffold (
+        topBar = {
+            CenterAlignedTopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                ),
+                title = {
+                    Text("Settings")
+                },
+                navigationIcon = {
+                    IconButton(onClick = navigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to game"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Settings Content Here", style = MaterialTheme.typography.headlineMedium)
+        }
     }
 }
-
