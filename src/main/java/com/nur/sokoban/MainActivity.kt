@@ -2,18 +2,14 @@ package com.nur.sokoban
 
 import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -21,23 +17,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.traceEventEnd
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role.Companion.Button
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import com.nur.sokoban.ui.theme.SokobanTheme
-import java.nio.file.Files.size
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -76,14 +70,19 @@ private val levelData = intArrayOf(
 
 @Composable
 fun GameScreen(modifier: Modifier = Modifier) {
-    var pX by remember { mutableStateOf(6) }
-    var pY by remember { mutableStateOf(4) }
+    var pX by remember { mutableIntStateOf(6) }
+    var pY by remember { mutableIntStateOf(4) }
     var heroOnGoal by remember { mutableStateOf(false) }
     var showWinDialog by remember { mutableStateOf(false) }
     val levelD = remember { mutableStateListOf(*levelData.toTypedArray()) }
 
+    // For swipe
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
+
     val initialPX = 6
     val initialPY = 4
+
 
     fun reset() {
         pX = initialPX
@@ -101,17 +100,15 @@ fun GameScreen(modifier: Modifier = Modifier) {
         val nextIndex = nextY * LEVEL_WIDTH + nextX
         val target = levelD[nextIndex]
 
-        if (target == 1) return // Wall
+        if (target == 1) return
 
         if (target == 0 || target == 3) {
-            // Move to empty or goal
             levelD[pY * LEVEL_WIDTH + pX] = if (heroOnGoal) 3 else 0
             pX = nextX
             pY = nextY
             levelD[nextIndex] = 4
             heroOnGoal = (target == 3)
         } else if (target == 2 || target == 5) {
-            // Try to push box
             val beyondX = nextX + dx
             val beyondY = nextY + dy
             if (beyondX < 0 || beyondX >= LEVEL_WIDTH || beyondY < 0 || beyondY >= LEVEL_HEIGHT) return
@@ -120,15 +117,13 @@ fun GameScreen(modifier: Modifier = Modifier) {
             val beyond = levelD[beyondIndex]
 
             if (beyond == 0 || beyond == 3) {
-                // Push successful
                 levelD[pY * LEVEL_WIDTH + pX] = if (heroOnGoal) 3 else 0
                 pX = nextX
                 pY = nextY
                 levelD[nextIndex] = 4
-                heroOnGoal = (target == 5) // Was the box on a goal?
+                heroOnGoal = (target == 5)
                 levelD[beyondIndex] = if (beyond == 0) 2 else 5
             }
-            // Else can't push (wall, another box, etc.)
         }
 
         if (2 !in levelD) {
@@ -137,44 +132,39 @@ fun GameScreen(modifier: Modifier = Modifier) {
     }
 
 
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+
+                        offsetX += dragAmount.x
+                        offsetY += dragAmount.y
+                    },
+                    onDragEnd = {
+                        val threshold = 100f
+
+                        when {
+                            offsetX > threshold -> move(1, 0)
+                            offsetX < -threshold -> move(-1, 0)
+                            offsetY > threshold -> move(0, 1)
+                            offsetY < -threshold -> move(0, -1)
+                        }
+
+                        offsetX = 0f
+                        offsetY = 0f
+                    }
+                )
+            }
     ) {
         GameLevelCanvas(
             levelData = levelD.toList(),
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .weight(1f, fill = false)
+                .fillMaxSize()
+                .aspectRatio(LEVEL_WIDTH.toFloat() / LEVEL_HEIGHT.toFloat())
         )
-        Column (
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Button(onClick = {move(0, -1)}
-            ) {
-                Text("Up")
-            }
-            Row (
-                modifier = Modifier.padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Button(onClick = {move(-1, 0)}) {
-                    Text("Left")
-                }
-                Button(onClick = {move(1, 0)}) {
-                    Text("Right")
-                }
-            }
-            Button(onClick = {move(0, 1)}) {
-                Text("Down")
-            }
-            Button(onClick = {
-                reset()
-            }) {
-                Text("Reset")
-            }
-        }
     }
 
     if (showWinDialog) {
