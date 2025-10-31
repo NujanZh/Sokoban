@@ -1,5 +1,6 @@
 package com.nur.sokoban.ui.screen
 
+import android.annotation.SuppressLint
 import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.compose.foundation.Canvas
@@ -220,6 +221,7 @@ fun GameScreen(navController: NavController) {
     }
 }
 
+@SuppressLint("LocalContextResourcesRead")
 @Composable
 fun GameLevelCanvas(levelData: List<Int>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
