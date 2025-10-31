@@ -2,6 +2,7 @@ package com.nur.sokoban
 
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -11,10 +12,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -35,22 +44,50 @@ import com.nur.sokoban.ui.theme.SokobanTheme
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             SokobanTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                var resetTrigger by remember { mutableIntStateOf(0) }
+
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    topBar = {
+                        TopAppBar(
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                titleContentColor = MaterialTheme.colorScheme.primary,
+                            ),
+                            title = {
+                                Text("Level 1")
+                            },
+                            actions = {
+                                IconButton(onClick = {
+                                    resetTrigger++
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Reset level",
+                                    )
+                                }
+                            }
+                        )
+                    },
+                ) { innerPadding ->
                     GameScreen(
                         modifier = Modifier
                             .padding(innerPadding)
-                            .fillMaxSize()
+                            .fillMaxSize(),
+                        resetTrigger
                     )
                 }
             }
         }
     }
 }
+
 private const val LEVEL_WIDTH = 10
 private const val LEVEL_HEIGHT = 10
 
@@ -69,12 +106,12 @@ private val levelData = intArrayOf(
 )
 
 @Composable
-fun GameScreen(modifier: Modifier = Modifier) {
-    var pX by remember { mutableIntStateOf(6) }
-    var pY by remember { mutableIntStateOf(4) }
-    var heroOnGoal by remember { mutableStateOf(false) }
+fun GameScreen(modifier: Modifier = Modifier, resetTrigger: Int = 0) {
+    var pX by remember(resetTrigger) { mutableIntStateOf(6) }
+    var pY by remember(resetTrigger) { mutableIntStateOf(4) }
+    var heroOnGoal by remember(resetTrigger) { mutableStateOf(false) }
     var showWinDialog by remember { mutableStateOf(false) }
-    val levelD = remember { mutableStateListOf(*levelData.toTypedArray()) }
+    val levelD = remember(resetTrigger) { mutableStateListOf(*levelData.toTypedArray()) }
 
     // For swipe
     var offsetX by remember { mutableFloatStateOf(0f) }
@@ -93,6 +130,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
     }
 
     fun move(dx: Int, dy: Int) {
+        Log.d("Sokoban", "move called: pX=$pX, pY=$pY, dx=$dx, dy=$dy")
         val nextX = pX + dx
         val nextY = pY + dy
         if (nextX < 0 || nextX >= LEVEL_WIDTH || nextY < 0 || nextY >= LEVEL_HEIGHT) return
@@ -135,7 +173,7 @@ fun GameScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(resetTrigger) {
                 detectDragGestures(
                     onDrag = { change, dragAmount ->
                         change.consume()
