@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.nur.sokoban.R
 import com.nur.sokoban.data.model.Level
+import com.nur.sokoban.data.model.ProgressManager
 import kotlin.math.roundToInt
 
 
@@ -51,15 +52,44 @@ fun GameScreen(
     onNavigateToSettings: () -> Unit
 ) {
     if (level == null) {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    title = { Text("Sokoban") },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateToLevels) {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = "Levels Menu"
+                            )
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text("Choose level", style = MaterialTheme.typography.headlineMedium)
+            }
+        }
         return
     }
 
-
-    var pX by remember { mutableIntStateOf(level.playerStartX) }
-    var pY by remember { mutableIntStateOf(level.playerStartY) }
-    var heroOnGoal by remember { mutableStateOf(level.playerOnGoalAtStart) }
+    val context = LocalContext.current
+    var pX by remember(level) { mutableIntStateOf(level.playerStartX) }
+    var pY by remember(level) { mutableIntStateOf(level.playerStartY) }
+    var heroOnGoal by remember(level) { mutableStateOf(level.playerOnGoalAtStart) }
     var showWinDialog by remember { mutableStateOf(false) }
-    val levelD = remember { mutableStateListOf(*level.grid.toTypedArray()) }
+    var moveCount by remember(level) { mutableIntStateOf(0) }
+    val levelD = remember(level) { mutableStateListOf(*level.grid.toTypedArray()) }
 
     // For swipe
     var offsetX by remember { mutableFloatStateOf(0f) }
@@ -69,6 +99,7 @@ fun GameScreen(
         pX = level.playerStartX
         pY = level.playerStartY
         heroOnGoal = level.playerOnGoalAtStart
+        moveCount = 0
         levelD.clear()
         levelD.addAll(level.grid.toTypedArray())
     }
@@ -84,12 +115,15 @@ fun GameScreen(
 
         if (target == 1) return
 
+        var moved = false
+
         if (target == 0 || target == 3) {
             levelD[pY * level.width + pX] = if (heroOnGoal) 3 else 0
             pX = nextX
             pY = nextY
             levelD[nextIndex] = 4
             heroOnGoal = (target == 3)
+            moved = true
         } else if (target == 2 || target == 5) {
             val beyondX = nextX + dx
             val beyondY = nextY + dy
@@ -105,10 +139,16 @@ fun GameScreen(
                 levelD[nextIndex] = 4
                 heroOnGoal = (target == 5)
                 levelD[beyondIndex] = if (beyond == 0) 2 else 5
+                moved = true
             }
         }
 
+        if (moved) {
+            moveCount++
+        }
+
         if (2 !in levelD) {
+            ProgressManager.saveLevelScore(context, level.number, moveCount)
             showWinDialog = true
         }
     }
@@ -188,10 +228,21 @@ fun GameScreen(
         }
 
         if (showWinDialog) {
+            val bestScore = level.bestScore
+            val isNewRecord = bestScore == null || moveCount < bestScore
+
             AlertDialog(
                 onDismissRequest = { showWinDialog = false },
                 title = { Text("Congratulations!") },
-                text = { Text("You have won!") },
+                text = {
+                    Text(
+                        if (isNewRecord) {
+                            "You've completed the level with $moveCount moves! New record!"
+                        } else {
+                            "You've completed the level with"
+                        }
+                    )
+                },
                 confirmButton = {
                     Button(onClick = {
                         reset()

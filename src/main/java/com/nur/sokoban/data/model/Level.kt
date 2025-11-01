@@ -8,7 +8,8 @@ data class Level(
     val height: Int,
     val playerStartX: Int,
     val playerStartY: Int,
-    val playerOnGoalAtStart: Boolean
+    val playerOnGoalAtStart: Boolean,
+    var bestScore: Int? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -124,7 +125,7 @@ object LevelParser {
 
         return Level(
             number = number,
-            name = "NABOKOSMOS ${number.toString().padStart(2, '0')}",
+            name = "Minikosmos ${number.toString().padStart(2, '0')}",
             grid = grid,
             width = width,
             height = height,
