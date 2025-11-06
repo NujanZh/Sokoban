@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nur.sokoban.data.model.Level
 import com.nur.sokoban.data.model.LevelParser
+import com.nur.sokoban.data.model.ProgressManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +58,7 @@ fun LevelScreen(
                 .bufferedReader()
                 .use { it.readText() }
             levels = LevelParser.parseLevels(content)
+            ProgressManager.loadScoresForLevels(context, levels)
             isLoading = false
         } catch (e: Exception) {
             error = "Error loadint levels: ${e.message}"

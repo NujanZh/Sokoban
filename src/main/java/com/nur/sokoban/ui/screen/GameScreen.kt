@@ -24,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.nur.sokoban.R
 import com.nur.sokoban.data.model.Level
+import com.nur.sokoban.data.model.LevelState
 import com.nur.sokoban.data.model.ProgressManager
 import kotlin.math.roundToInt
 
@@ -84,16 +86,36 @@ fun GameScreen(
     }
 
     val context = LocalContext.current
-    var pX by remember(level) { mutableIntStateOf(level.playerStartX) }
-    var pY by remember(level) { mutableIntStateOf(level.playerStartY) }
-    var heroOnGoal by remember(level) { mutableStateOf(level.playerOnGoalAtStart) }
+    val savedState = remember(level) { ProgressManager.loadLevelState(context, level.number) }
+
+    var pX by remember(level) { mutableIntStateOf(savedState?.playerX ?: level.playerStartX) }
+    var pY by remember(level) { mutableIntStateOf(savedState?.playerY ?: level.playerStartY) }
+    var heroOnGoal by remember(level) { mutableStateOf(savedState?.heroOnGoal ?: level.playerOnGoalAtStart) }
     var showWinDialog by remember { mutableStateOf(false) }
-    var moveCount by remember(level) { mutableIntStateOf(0) }
-    val levelD = remember(level) { mutableStateListOf(*level.grid.toTypedArray()) }
+    var moveCount by remember(level) { mutableIntStateOf(savedState?.moveCount ?: 0) }
+    val levelD = remember(level) {
+        mutableStateListOf(*(savedState?.grid ?: level.grid).toTypedArray())
+    }
 
     // For swipe
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
+
+    DisposableEffect(level) {
+        onDispose {
+            if (!showWinDialog) {
+                val state = LevelState(
+                    levelNumber = level.number,
+                    grid = levelD.toIntArray(),
+                    playerX = pX,
+                    playerY = pY,
+                    heroOnGoal = heroOnGoal,
+                    moveCount = moveCount
+                )
+                ProgressManager.saveLevelState(context, state)
+            }
+        }
+    }
 
     fun reset() {
         pX = level.playerStartX
@@ -102,10 +124,10 @@ fun GameScreen(
         moveCount = 0
         levelD.clear()
         levelD.addAll(level.grid.toTypedArray())
+        ProgressManager.clearLevelState(context, level.number)
     }
 
     fun move(dx: Int, dy: Int) {
-        Log.d("Sokoban", "move called: pX=$pX, pY=$pY, dx=$dx, dy=$dy")
         val nextX = pX + dx
         val nextY = pY + dy
         if (nextX < 0 || nextX >= level.width || nextY < 0 || nextY >= level.height) return
@@ -162,7 +184,7 @@ fun GameScreen(
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 title = {
-                    Text("Level ${level.number}")
+                    Text("Level ${level.number} - Moves: $moveCount")
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateToLevels) {
@@ -252,8 +274,11 @@ fun GameScreen(
                     }
                 },
                 dismissButton = {
-                    Button(onClick = { showWinDialog = false }) {
-                        Text("Close")
+                    Button(onClick = {
+                        showWinDialog = false
+                        onNavigateToLevels()
+                    }) {
+                        Text("Other Levels")
                     }
                 }
             )
