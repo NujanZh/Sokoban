@@ -125,7 +125,7 @@ object LevelParser {
 
         return Level(
             number = number,
-            name = "Minikosmos ${number.toString().padStart(2, '0')}",
+            name = "${number.toString().padStart(2, '0')}",
             grid = grid,
             width = width,
             height = height,

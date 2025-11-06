@@ -11,12 +11,8 @@ object ProgressManager {
     private const val KEY_LEVEL_SCORE = "level_%d_score"
     private const val KEY_LEVEL_STATE = "level_%d_state"
 
-    private fun getPrefs(context: Context): SharedPreferences {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    }
-
     fun saveLevelScore(context: Context, levelNumber: Int, score: Int) {
-        val prefs = getPrefs(context)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val currentBest = getLevelScore(context, levelNumber)
 
         if (currentBest == 0 || score < currentBest) {
@@ -29,7 +25,7 @@ object ProgressManager {
     }
 
     fun getLevelScore(context: Context, levelNumber: Int): Int {
-        val prefs = getPrefs(context)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val score = prefs.getInt(KEY_LEVEL_SCORE.format(levelNumber), -1)
         return if (score == -1) 0 else score
     }
@@ -42,11 +38,12 @@ object ProgressManager {
     }
 
     fun clearAllProgress(context: Context) {
-        getPrefs(context).edit { clear() }
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { clear() }
     }
 
     fun saveLevelState(context: Context, state: LevelState) {
-        val prefs = getPrefs(context)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val json = JSONObject().apply {
             put("levelNumber", state.levelNumber)
             put("playerX", state.playerX)
@@ -62,7 +59,7 @@ object ProgressManager {
     }
 
     fun loadLevelState(context: Context, levelNumber: Int): LevelState? {
-        val prefs = getPrefs(context)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val jsonString = prefs.getString(KEY_LEVEL_STATE.format(levelNumber), null) ?: return null
 
         return try {
@@ -84,7 +81,7 @@ object ProgressManager {
     }
 
     fun clearLevelState(context: Context, levelNumber: Int) {
-        val prefs = getPrefs(context)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit {
             remove(KEY_LEVEL_STATE.format(levelNumber))
         }

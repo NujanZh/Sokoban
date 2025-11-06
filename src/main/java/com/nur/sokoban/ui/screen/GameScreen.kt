@@ -43,6 +43,7 @@ import com.nur.sokoban.R
 import com.nur.sokoban.data.model.Level
 import com.nur.sokoban.data.model.LevelState
 import com.nur.sokoban.data.model.ProgressManager
+import com.nur.sokoban.ui.LevelCanvas
 import kotlin.math.roundToInt
 
 
@@ -239,13 +240,13 @@ fun GameScreen(
                     )
                 }
         ) {
-            GameLevelCanvas(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .aspectRatio(level.width.toFloat() / level.height.toFloat()),
+            LevelCanvas(
                 levelData = levelD.toList(),
                 levelWidth = level.width,
-                levelHeight = level.height
+                levelHeight = level.height,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .aspectRatio(level.width.toFloat() / level.height.toFloat())
             )
         }
 
@@ -282,53 +283,6 @@ fun GameScreen(
                     }
                 }
             )
-        }
-    }
-}
-
-@SuppressLint("LocalContextResourcesRead")
-@Composable
-fun GameLevelCanvas(
-    modifier: Modifier = Modifier,
-    levelData: List<Int>,
-    levelWidth: Int,
-    levelHeight: Int
-) {
-    val context = LocalContext.current
-
-    val tiles = remember {
-        arrayOf(
-            BitmapFactory.decodeResource(context.resources, R.drawable.empty).asImageBitmap(), // 0
-            BitmapFactory.decodeResource(context.resources, R.drawable.wall).asImageBitmap(),  // 1
-            BitmapFactory.decodeResource(context.resources, R.drawable.box).asImageBitmap(),   // 2
-            BitmapFactory.decodeResource(context.resources, R.drawable.goal).asImageBitmap(),  // 3
-            BitmapFactory.decodeResource(context.resources, R.drawable.hero).asImageBitmap(),  // 4
-            BitmapFactory.decodeResource(context.resources, R.drawable.boxok).asImageBitmap()  // 5
-        )
-    }
-
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val tileWidthPx = size.width / levelWidth
-        val tileHeightPx = size.height / levelHeight
-        val tileSize = minOf(tileWidthPx, tileHeightPx)
-
-        for (y in 0 until levelHeight) {
-            for (x in 0 until levelWidth) {
-                val tileIndex = levelData[y * levelWidth + x]
-                val img: ImageBitmap = tiles[tileIndex.coerceIn(0, tiles.lastIndex)]
-
-                drawImage(
-                    image = img,
-                    dstOffset = IntOffset(
-                        x = (x * tileSize).roundToInt(),
-                        y = (y * tileSize).roundToInt()
-                    ),
-                    dstSize = IntSize(
-                        width = tileSize.roundToInt(),
-                        height = tileSize.roundToInt()
-                    )
-                )
-            }
         }
     }
 }

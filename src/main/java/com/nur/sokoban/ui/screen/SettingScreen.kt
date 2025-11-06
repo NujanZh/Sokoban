@@ -47,7 +47,7 @@ fun SettingScreen(navigateBack: () -> Unit) {
                 .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("Settings Content Here", style = MaterialTheme.typography.headlineMedium)
+            Text("Settings", style = MaterialTheme.typography.headlineMedium)
         }
     }
 }

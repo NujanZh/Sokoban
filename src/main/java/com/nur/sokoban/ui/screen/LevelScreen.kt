@@ -50,6 +50,7 @@ import com.nur.sokoban.R
 import com.nur.sokoban.data.model.Level
 import com.nur.sokoban.data.model.LevelParser
 import com.nur.sokoban.data.model.ProgressManager
+import com.nur.sokoban.ui.LevelCanvas
 import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,14 +87,6 @@ fun LevelScreen(
                 ),
                 title = {
                     Text("Choose Levels")
-                },
-                navigationIcon = {
-                    IconButton(onClick = navigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to game"
-                        )
-                    }
                 }
             )
         }
@@ -148,57 +141,6 @@ fun LevelScreen(
 }
 
 @Composable
-fun LevelPreview(level: Level, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-
-    val tiles = remember {
-        arrayOf(
-            BitmapFactory.decodeResource(context.resources, R.drawable.empty).asImageBitmap(), // 0
-            BitmapFactory.decodeResource(context.resources, R.drawable.wall).asImageBitmap(),  // 1
-            BitmapFactory.decodeResource(context.resources, R.drawable.box).asImageBitmap(),   // 2
-            BitmapFactory.decodeResource(context.resources, R.drawable.goal).asImageBitmap(),  // 3
-            BitmapFactory.decodeResource(context.resources, R.drawable.hero).asImageBitmap(),  // 4
-            BitmapFactory.decodeResource(context.resources, R.drawable.boxok).asImageBitmap()  // 5
-        )
-    }
-
-    Canvas(modifier = modifier) {
-        val canvasWidth = size.width
-        val canvasHeight = size.height
-
-        val tileWidth = canvasWidth / level.width
-        val tileHeight = canvasHeight / level.height
-        val tileSize = min(tileWidth, tileHeight)
-
-        val offsetX = (canvasWidth - (level.width * tileSize)) / 2
-        val offsetY = (canvasHeight - (level.height * tileSize)) / 2
-
-        for (y in 0 until level.height) {
-            for (x in 0 until level.width) {
-                val displayValue = level.grid[y * level.width + x]
-
-                val img = tiles[displayValue.coerceIn(0, tiles.lastIndex)]
-
-                val posX = offsetX + x * tileSize
-                val posY = offsetY + y * tileSize
-
-                drawImage(
-                    image = img,
-                    dstOffset = IntOffset(
-                        x = posX.toInt(),
-                        y = posY.toInt()
-                    ),
-                    dstSize = IntSize(
-                        width = tileSize.toInt(),
-                        height = tileSize.toInt()
-                    )
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun LevelCard(level: Level, onClick: () -> Unit) {
     Card(
         modifier = Modifier
@@ -216,8 +158,10 @@ fun LevelCard(level: Level, onClick: () -> Unit) {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            LevelPreview(
-                level = level,
+            LevelCanvas(
+                levelData = level.grid.toList(),
+                levelWidth = level.width,
+                levelHeight = level.height,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(8.dp)
