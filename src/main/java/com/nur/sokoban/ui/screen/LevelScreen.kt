@@ -1,5 +1,7 @@
 package com.nur.sokoban.ui.screen
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +24,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,11 +38,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.nur.sokoban.R
 import com.nur.sokoban.data.model.Level
 import com.nur.sokoban.data.model.LevelParser
 import com.nur.sokoban.data.model.ProgressManager
+import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +72,7 @@ fun LevelScreen(
             ProgressManager.loadScoresForLevels(context, levels)
             isLoading = false
         } catch (e: Exception) {
-            error = "Error loadint levels: ${e.message}"
+            error = "Error loading levels: ${e.message}"
             isLoading = false
         }
     }
@@ -137,43 +148,120 @@ fun LevelScreen(
 }
 
 @Composable
+fun LevelPreview(level: Level, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+
+    val tiles = remember {
+        arrayOf(
+            BitmapFactory.decodeResource(context.resources, R.drawable.empty).asImageBitmap(), // 0
+            BitmapFactory.decodeResource(context.resources, R.drawable.wall).asImageBitmap(),  // 1
+            BitmapFactory.decodeResource(context.resources, R.drawable.box).asImageBitmap(),   // 2
+            BitmapFactory.decodeResource(context.resources, R.drawable.goal).asImageBitmap(),  // 3
+            BitmapFactory.decodeResource(context.resources, R.drawable.hero).asImageBitmap(),  // 4
+            BitmapFactory.decodeResource(context.resources, R.drawable.boxok).asImageBitmap()  // 5
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+
+        val tileWidth = canvasWidth / level.width
+        val tileHeight = canvasHeight / level.height
+        val tileSize = min(tileWidth, tileHeight)
+
+        val offsetX = (canvasWidth - (level.width * tileSize)) / 2
+        val offsetY = (canvasHeight - (level.height * tileSize)) / 2
+
+        for (y in 0 until level.height) {
+            for (x in 0 until level.width) {
+                val displayValue = level.grid[y * level.width + x]
+
+                val img = tiles[displayValue.coerceIn(0, tiles.lastIndex)]
+
+                val posX = offsetX + x * tileSize
+                val posY = offsetY + y * tileSize
+
+                drawImage(
+                    image = img,
+                    dstOffset = IntOffset(
+                        x = posX.toInt(),
+                        y = posY.toInt()
+                    ),
+                    dstSize = IntSize(
+                        width = tileSize.toInt(),
+                        height = tileSize.toInt()
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun LevelCard(level: Level, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (level.bestScore != null)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surface
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(
-                text = "Level",
-                style = MaterialTheme.typography.bodySmall
+            LevelPreview(
+                level = level,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
             )
-            Text(
-                text = level.number.toString(),
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            if (level.bestScore != null) {
-                Text(
-                    text = "Score: ${level.bestScore}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Text(
-                    text = "You didn't beat the level",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = "Level ${level.number}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    if (level.bestScore != null) {
+                        Text(
+                            text = "${level.bestScore} moves",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "Not completed",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
         }
     }
